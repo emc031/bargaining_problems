@@ -1,0 +1,40 @@
+
+Goal - investigate relationship between two factors
+     1) relative bargaining power of the two agents = 0 < m < 1
+     2) probability of bargaining failure = 0 < p < 1
+     and Ua.
+
+2 teams - a and u (aligned & unaligned)
+
+Actions - each team can convert some proportion of N into X and some into Y.
+Proportion of N that a spends on X = 0 < Aa < 1
+Proportion of N that u spends on X = 0 < Au < 1
+N = 10^22
+
+Ua = m * slog(N * Aa) + (1 - m) * slog(N * Au)
+Uu = m * slog(N * (1 - Aa)) + (1 - m) * slog(N * (1 - Au))
+
+Bargaining succeeds = action profile maximizes (Ua - Uamin) * (Uu - Uumin) (or some other bargaining solution / social welfare function)
+Bargaining fails = action profile results in Uamin, Uumin. 3 different schenarios:
+	   1) Aa = 1, Au = 0
+	   2) Ua = 0, Uu = 0
+	   3) like (1), but utilities are swapped and -'ed.
+
+dUp(p, m) = Ua(p(1 + delta), m) - Ua(p, m)
+dUm(p, m) = Ua(p, m(1 + delta)) - Ua(p, m)
+
+3 heatmaps -
+  y-axis = p (log scale), limits specified in doc
+  x-axis = m (log scale), limits specified in doc
+  1) default (what does that mean?) expected Ua given p.
+  2) (difference in Ua due to 1% change in p/(1-p)) / (" m/(1-m)) == (dUp / dUm) (colours specified in doc)
+  3) max(dUp, dUm) (colours should represent which is bigger.
+
+toggles:
+	* resolution of heat maps
+	* N
+	* log axes, axes range
+	* social welfare function being optimized
+	* bargaining failure schenaro (define function so a new one can be implemented easily)
+	* % change in p/(1-p) and m/(1-m) 'delta'
+
