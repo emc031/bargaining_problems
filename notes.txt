@@ -38,3 +38,9 @@ toggles:
 	* bargaining failure schenaro (define function so a new one can be implemented easily)
 	* % change in p/(1-p) and m/(1-m) 'delta'
 
+sanity checks:
+     * expected payoff of A should increase with increasing m
+     * expected payoff of both A and U should increase with increasing p
+
+hours: saturday = 3 hours
+       sunday: 1100-1200. 1230 - 1500. 1645 - 
