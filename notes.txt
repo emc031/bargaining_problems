@@ -43,4 +43,5 @@ sanity checks:
      * expected payoff of both A and U should increase with increasing p
 
 hours: saturday = 3 hours
-       sunday: 1100-1200. 1230 - 1500. 1645 - 
+       sunday: 1100-1200. 1230 - 1500. 1700 - 1900 = 5.5 hours
+       1.5 left! 

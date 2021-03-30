@@ -1,26 +1,29 @@
 
-import math
+from math import log10
 import numpy as np
 import scipy.optimize as optimizer
 from typing import Callable
 
-""" 
-theree are 3 spaces, each represented by a unit square:
-  input space = {(p, m)}
-  action profile space = {(action_A, action_U)}
-  payoff space = {(utility_A, utility_U)}
+"""
+naming convention:
+
+utility_A = payoff for team aligned
+utility_U = payoff for team unaligned
 
 action_A = proportion of A's resources spent on X. 0 < action_A < 1
 action_U = proportion of U's resources spent on X. 0 < action_U < 1
 """
 
 N = 10 ** 22 # amount of resources avaliable to each team
-delta = 0.01 # proportional change in p/(1 - p) and m/(1 - m) in heatmaps 2 & 3
 optimization_algo = 'L-BFGS-B' # algorithm for finding solutions to bargaining problems
 initial_action_profile_guess = [0.1, 0.9]
+delta = 0.01 # change in m or p to be depicted in heatmaps
+
+#### utilities given action profiles ####
 
 def specialLog(x):
-    return 0 if x < 1 else math.log10(x)
+    return 0 if x < 1 else log10(x)
+##
 
 def utility_A_from_actions(m: float,
                            action_A: float,
@@ -30,6 +33,8 @@ def utility_A_from_actions(m: float,
     action profile = (action_A, action_U)
     """
     return m * specialLog(N * action_A) + (1 - m) * specialLog(N * action_U)
+##
+
 
 def utility_U_from_actions(m: float,
                            action_A: float,
@@ -38,12 +43,10 @@ def utility_U_from_actions(m: float,
     Computes & returns utilities for team unaligned given action profile
     = (action_A, action_U)
     """
-    print(f'=============================')
-    print(f'calling utility_U_form_actions: ')
-    print(f'inputs: m = {m}, action_A = {action_A}, action_U = {action_U}')
-    print(f'result = {m * specialLog(N * (1 - action_A)) + (1 - m) * specialLog(N * (1 - action_U))}')
-    print(f'=============================')
     return m * specialLog(N * (1 - action_A)) + (1 - m) * specialLog(N * (1 - action_U))
+##
+
+#### welfare functions ####
 
 def nash_welfare_function(m: float,
                           action_A: float,
@@ -56,6 +59,7 @@ def nash_welfare_function(m: float,
     """
     return (utility_A_from_actions(m, action_A, action_U) - bargaining_failure_utility_A) * \
         (utility_U_from_actions(m, action_A, action_U) - bargaining_failure_utility_U)
+##
 
 
 def ks_welfare_function(m: float,
@@ -81,9 +85,6 @@ def ks_welfare_function(m: float,
     this equation is satisfied when 
     - ((u1 - d1)(b2 - d2) - (b1 - d1)(u2 - d2))^2 is maximized.
     """
-    ######### best point independent of m, so this can be put somewhere else
-    ######### so it is only called once.
-    
     def utility_A_moreargs(m, action_A, action_U, **extras):
         return utility_A_from_actions(m, action_A, action_U)
     best_action_profile_for_A = \
@@ -106,8 +107,6 @@ def ks_welfare_function(m: float,
                                             action_A = best_action_profile_for_U[0],
                                             action_U = best_action_profile_for_U[1])
 
-    ################
-
     utility_A = utility_A_from_actions(m, action_A, action_U)
     utility_U = utility_U_from_actions(m, action_A, action_U)
 
@@ -120,11 +119,12 @@ def ks_welfare_function(m: float,
     line_constraint = - (line_constraint_lhs - line_constraint_rhs) ** 2
 
     pareto_constraint = - (utility_A + utility_U)
-
-    print(f'line_constraint = {line_constraint}')
-    print(f'pareto_constraint = {pareto_constraint}')
-    print(f'ks cost = {line_constraint + pareto_constraint}')
     return line_constraint + pareto_constraint
+##
+
+
+#### computing bargaining solutions & associated funcs ####
+
 
 def find_bargaining_solution(m: float,
                              welfare_function: Callable,
@@ -153,22 +153,27 @@ def find_bargaining_solution(m: float,
                                   x0 = initial_guess,
                                   bounds = search_bounds,
                                   method = optimization_algo)
-    print(f'bargaining solution: {solution}')
     return solution.x
+##
+
 
 def expected_utility_A(m: float,
                        p: float,
                        welfare_function: Callable,
-                       bargaining_failure_utility_A: float,
-                       bargaining_failure_utility_U: float) -> float:
-    """ given a point on (m, p), and a welfare function,
-    compute and return the expected utility for team aligned """
+                       bargaining_failure_utility_A: Callable,
+                       bargaining_failure_utility_U: Callable) -> float:
+    """ 
+    given a point on (m, p), and a welfare function,
+    compute and return the expected utility for team aligned.
+
+    bargaining_failure_utility_A/U are functions of m.
+    """
     bargaining_solution = \
         find_bargaining_solution(m = m,
                                  welfare_function = nash_welfare_function,
-                                 bargaining_failure_utility_A = bargaining_failure_utility_A,
-                                 bargaining_failure_utility_U = bargaining_failure_utility_U)
-    action_profile = bargaining_solution.x
+                                 bargaining_failure_utility_A = bargaining_failure_utility_A(m),
+                                 bargaining_failure_utility_U = bargaining_failure_utility_U(m))
+    action_profile = bargaining_solution
     action_A = action_profile[0]
     action_U = action_profile[1]
     bargaining_success_utility_A = utility_A_from_actions(m = m,
@@ -176,7 +181,88 @@ def expected_utility_A(m: float,
                                                           action_U = action_U)
 
     return p * bargaining_success_utility_A + \
-        (1 - p) * bargaining_failure_utility_A
+        (1 - p) * bargaining_failure_utility_A(m)
+##
+
+def expected_utility_A_delta_m(m: float,
+                               p: float,
+                               welfare_function: Callable,
+                               bargaining_failure_utility_A: Callable,
+                               bargaining_failure_utility_U: Callable) -> float:
+    """ 
+    returns expected_utility_A((1 + delta)m, p) - expected_utility_A(m, p)
+    delta corresponds to a change in m/(1-m) set at the top of this file
+    """
+    m_ratio = m/(1 - m)
+    shifted_m_ratio = m_ratio * (1 + delta)
+    shifted_m = shifted_m_ratio / (1 + shifted_m_ratio)
+    
+    utility_A = expected_utility_A(m, p, welfare_function,
+                                   bargaining_failure_utility_A,
+                                   bargaining_failure_utility_U)
+    shifted_utility_A = expected_utility_A(shifted_m, p, welfare_function,
+                                           bargaining_failure_utility_A,
+                                           bargaining_failure_utility_U)
+    return shifted_utility_A - utility_A
+##
 
 
-def
+def expected_utility_A_delta_p(m: float,
+                               p: float,
+                               welfare_function: Callable,
+                               bargaining_failure_utility_A: Callable,
+                               bargaining_failure_utility_U: Callable) -> float:
+    """ 
+    returns expected_utility_A(m, (1 + delta)p) - expected_utility_A(m, p)
+    delta corresponds to a change in m/(1-m) set at the top of this file
+    """
+    p_ratio = p/(1 - p)
+    shifted_p_ratio = p_ratio * (1 + delta)
+    shifted_p = shifted_p_ratio / (1 + shifted_p_ratio)
+    
+    utility_A = expected_utility_A(m, p, welfare_function,
+                                   bargaining_failure_utility_A,
+                                   bargaining_failure_utility_U)
+    shifted_utility_A = expected_utility_A(m, shifted_p, welfare_function,
+                                           bargaining_failure_utility_A,
+                                           bargaining_failure_utility_U)
+    return shifted_utility_A - utility_A
+##
+
+
+def expected_utility_A_shift_ratio(m: float,
+                                   p: float,
+                                   welfare_function: Callable,
+                                   bargaining_failure_utility_A: Callable,
+                                   bargaining_failure_utility_U: Callable) -> float:
+    """
+    returns the ratio of change in utility_A due to fractional change in p/(1-p)
+    over fractional change in m/(1-m)
+    """
+    shift_m = expected_utility_A_delta_m(m, p, welfare_function,
+                                         bargaining_failure_utility_A,
+                                         bargaining_failure_utility_U)
+    shift_p = expected_utility_A_delta_p(m, p, welfare_function,
+                                         bargaining_failure_utility_A,
+                                         bargaining_failure_utility_U)
+    return shift_p / shift_m
+##
+
+
+def expected_utility_A_max_shift(m: float,
+                                 p: float,
+                                 welfare_function: Callable,
+                                 bargaining_failure_utility_A: Callable,
+                                 bargaining_failure_utility_U: Callable) -> float:
+    """
+    returns the ratio of change in utility_A due to fractional change in p/(1-p)
+    over fractional change in m/(1-m)
+    """
+    shift_m = expected_utility_A_delta_m(m, p, welfare_function,
+                                         bargaining_failure_utility_A,
+                                         bargaining_failure_utility_U)
+    shift_p = expected_utility_A_delta_p(m, p, welfare_function,
+                                         bargaining_failure_utility_A,
+                                         bargaining_failure_utility_U)
+    return max(shift_m, shift_p)
+##
