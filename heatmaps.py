@@ -1,19 +1,22 @@
 
-import matplotlib.pyplot as plt
-import numpy as np
 from typing import Callable
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+import numpy as np
 
 resolution = 12
 save_heatmap = True
-show_heatmap = True
+show_heatmap = False
 result_file = 'bargaining_heatmap.png'
 
 min_m_ratio = 10 ** -5 # minimum of m/(1-m)
 max_m_ratio = 10 ** +5 # maximum of m/(1-m)
 min_p = 10 ** -3
 max_p = 1 - 10 ** -3
-    
+
 def make_heatmap(fill_func: Callable,
+                 cmap_type: str,
                  plot_title: str = None,
                  m_values: list = None,
                  p_values: list = None) -> None:
@@ -21,7 +24,7 @@ def make_heatmap(fill_func: Callable,
     evaluates val_func (a function taking in (m, p))
     at each pair of m, p values in a mesh made from
     m_values and p_values.
-    
+
     draws heatmap of results against m/(1-m) / p/(1-p).
 
     If m/p_values are none,
@@ -52,7 +55,8 @@ def make_heatmap(fill_func: Callable,
     make_heatmap_generic(vals = vals,
                          x_labels = x_labels,
                          y_labels = y_labels,
-                         plot_title = plot_title)
+                         plot_title = plot_title,
+                         cmap_type = cmap_type)
 
 def default_p_values(min_, max_):
     log_min = np.log10(min_)
@@ -72,13 +76,21 @@ def default_m_values(min_ratio, max_ratio):
 def make_heatmap_generic(vals: np.array,
                          x_labels: np.array,
                          y_labels: np.array,
-                         plot_title: str = None) -> None:
+                         plot_title: str = None,
+                         cmap_type = 'sequential') -> None:
     """ makes heatmap of vals (resolution * resolution array), labels
-    the axes with x_labels & y_labels 
+    the axes with x_labels & y_labels
     (each a 1d array of length 'resolution') """
-    resolution = len(x_labels)
-
-    plt.imshow(vals, cmap='hot', interpolation='nearest')
+    if cmap_type == 'divergent':
+        max_val = np.amax(vals)
+        min_val = np.amin(vals)
+        divnorm = colors.TwoSlopeNorm(vmin = min_val, vcenter = 0, vmax = max_val)
+        cmap = cm.seismic
+    if cmap_type == 'sequential':
+        cmap = cm.hot
+        divnorm = None
+    
+    plt.imshow(vals, cmap = cmap, interpolation = 'nearest', norm = divnorm)
     plt.xticks(np.arange(resolution), x_labels)
     plt.yticks(np.arange(resolution), y_labels)
     plt.colorbar()
@@ -87,8 +99,11 @@ def make_heatmap_generic(vals: np.array,
     plt.xlabel('Prob(bargaining success)')
     plt.ylabel('Ratio of bargaining powers (team aligned)/(team unaligned)')
 
+    axes = plt.gca()
+    axes.xaxis.label.set_size(9)
+    axes.yaxis.label.set_size(9)
+
     if save_heatmap:
         plt.savefig(result_file)
     if show_heatmap:
         plt.show()
-
